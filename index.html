@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heal the Stream - Sickle Cell Education Game</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: Arial, sans-serif;
+        }
+        /* Add cursor style class that will be toggled */
+        .no-cursor {
+            cursor: none;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            display: block;
+            pointer-events: none;
+        }
+        #score {
+            position: absolute;
+            top: 40px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            display: block;
+            pointer-events: none;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin-left: -10px;
+            margin-top: -10px;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            line-height: 20px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #gameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        #gameOverlay h1, #gameOverlay p {
+            color: white;
+            text-align: center;
+            max-width: 600px;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #5a2772;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        #factOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        .fact-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            text-align: center;
+        }
+        .fact-container h2 {
+            color: #333;
+        }
+        .fact-container p {
+            color: #555;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Heal the Stream</div>
+    <div id="score">Score: 0</div>
+    <div id="crosshair">+</div>
+
+    <div id="gameOverlay">
+        <h1>Welcome to Heal the Stream!</h1>
+        <p>You're a superhero inside the body, helping to keep blood healthy by zapping sickle cells with your death ray. 
+        Use your mouse to aim and click to fire your powerful cyan death ray at the crescent-shaped sickle cells, turning them into 
+        normal round red blood cells.</p>
+        
+        <div style="background-color: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; margin: 15px 0;">
+            <h3 style="color: #cfb53a; margin-top: 0;">Game Levels:</h3>
+            <p style="margin: 5px 0;"><strong>Level 1: Arm Artery</strong> - Your first mission with 5 sickle cells to heal</p>
+            <p style="margin: 5px 0;"><strong>Level 2: Lung Capillaries</strong> - Navigate smaller vessels with 10 sickle cells</p>
+            <p style="margin: 5px 0;"><strong>Level 3: Heart</strong> - The final challenge with 15 faster-moving sickle cells</p>
+            
+            <h3 style="color: #cfb53a; margin-bottom: 0;">Scoring:</h3>
+            <p style="margin: 5px 0;">• Each sickle cell you heal adds 1 point to your score</p>
+            <p style="margin: 5px 0;">• Complete each level by healing all sickle cells</p>
+            <p style="margin: 5px 0;">• Learn interesting facts about sickle cell disease between levels</p>
+        </div>
+        
+        <p>As you progress, you'll learn interesting facts about sickle cell disease!</p>
+        <button id="startButton">Start Game</button>
+    </div>
+
+    <div id="factOverlay">
+        <div class="fact-container">
+            <h2>Sickle Cell Fact</h2>
+            <p id="factText">Sickle cell disease is caused by a genetic mutation affecting red blood cells.</p>
+            <button id="continueButton">Continue to Next Level</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game variables
+        let scene, camera, renderer, tube, cells = [];
+        let score = 0;
+        let level = 1;
+        let gameStarted = false;
+        let gameActive = false;
+        let levelCompleted = false;
+        let mouse = new THREE.Vector2();
+        
+        // Level settings
+        const levelSettings = [
+            { name: "Arm Artery", cellCount: 5, speed: 0.25, fact: "Sickle cell disease is caused by a genetic mutation affecting red blood cells." },
+            { name: "Lung Capillaries", cellCount: 10, speed: 0.2, fact: "Staying hydrated helps manage symptoms and prevent pain crises." },
+            { name: "Heart", cellCount: 15, speed: 0.35, fact: "Regular check-ups with a doctor are important for managing sickle cell disease." }
+        ];
+        
+        // Audio elements
+        const heartbeatSound = new Audio();
+        heartbeatSound.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAAoABP/Kv82/1r/e/+5/9v/DgACAA==";
+        heartbeatSound.loop = true;
+        
+        const healSound = new Audio();
+        healSound.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAAMAFr/8v9s/zL/Jv8=";
+        
+        // Add laser sound
+        const laserSound = new Audio();
+        laserSound.src = "data:audio/wav;base64,UklGRiQBAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YQABAAD//v3///7//wAA/wD+//7//v///wAA/wD+//3//f/+/wAA/wD+//3//P/9//7/AAD/AP7//f/8//z//f/+/wAA/wD+//3//P/7//z//f/+/wAA/wD+//3//P/7//v//P/9//7/AAD/AP7//f/8//v/+v/7//z//f/+/wAA/wD+//3//P/7//r/+v/7//z//f/+/wAA/wD+//3//P/7//r/+f/6//v//P/9//7/AAD/AP7//f/8//v/+v/5//n/+v/7//z//f/+/wAA/wD+//3//P/7//r/+f/4//n/+v/7//z//f/+/wAA/wD+//3//P/7//r/+f/4//j/+f/6//v//P/9//7/AAD/AP7//f/8//v/+v/5//j/9//4//n/+v/7//z//f/+/wAA/wA=";
+        
+        // Game setup
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000033);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            // Add directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Create blood vessel texture
+            const bloodVesselTexture = createBloodVesselTexture();
+            
+            // Create blood vessel (tube)
+            const tubeGeometry = new THREE.CylinderGeometry(5, 5, 100, 32, 1, true);
+            const tubeMaterial = new THREE.MeshPhongMaterial({
+                color: 0xaa0000,
+                side: THREE.BackSide,
+                transparent: true,
+                opacity: 0.7,
+                emissive: 0x330000,
+                map: bloodVesselTexture,
+                bumpMap: bloodVesselTexture,
+                bumpScale: 0.2,
+                shininess: 30
+            });
+            tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+            tube.rotation.x = Math.PI / 2;
+            
+            // Add a subtle animation to the texture to simulate blood flow
+            const animate = function() {
+                if (tube && tube.material.map) {
+                    tube.material.map.offset.y -= 0.0005;
+                }
+                requestAnimationFrame(animate);
+            };
+            animate();
+            
+            scene.add(tube);
+            
+            // Create death ray (initially invisible)
+            createDeathRay();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Add event listeners for shooting
+            document.addEventListener('mousedown', onMouseDown, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            
+            // Add click handler for start button
+            document.getElementById('startButton').addEventListener('click', startGame);
+            
+            // Add click handler for continue button
+            document.getElementById('continueButton').addEventListener('click', startNextLevel);
+        }
+        
+        // Death ray variables
+        let deathRay;
+        let rayActive = false;
+        let rayDuration = 0;
+        
+        function createDeathRay() {
+            // Create a cylinder for the death ray beam
+            const rayGeometry = new THREE.CylinderGeometry(0.05, 0.05, 100, 8, 1);
+            const rayMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.7,
+                emissive: 0x00ffff,
+                emissiveIntensity: 1
+            });
+            
+            // Position the ray to shoot from the camera forward
+            deathRay = new THREE.Mesh(rayGeometry, rayMaterial);
+            deathRay.rotation.x = Math.PI / 2;
+            deathRay.position.z = -50; // Position it far along the z-axis
+            deathRay.visible = false;  // Initially invisible
+            
+            scene.add(deathRay);
+        }
+        
+        function updateDeathRay() {
+            if (rayActive) {
+                // Make the ray visible and update its position based on camera
+                deathRay.visible = true;
+                deathRay.position.copy(camera.position);
+                deathRay.rotation.copy(camera.rotation);
+                deathRay.rotateX(Math.PI / 2); // Adjust to point forward
+                
+                // Add some visual effects to the ray
+                deathRay.material.opacity = 0.7 + Math.sin(rayDuration * 10) * 0.3;
+                
+                // Increment the duration counter
+                rayDuration += 0.1;
+                
+                // Deactivate the ray after a short time
+                if (rayDuration > 0.3) {
+                    rayActive = false;
+                    deathRay.visible = false;
+                    rayDuration = 0;
+                }
+            }
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function onMouseMove(event) {
+            // Calculate mouse position for aiming
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Limit camera rotation for aiming
+            if (gameActive) {
+                const rotationSpeed = 0.002;
+                camera.rotation.y = -mouse.x * 0.5;
+                camera.rotation.x = mouse.y * 0.5;
+            }
+        }
+        
+        function onMouseDown() {
+            if (gameActive) {
+                shootRay();
+            }
+        }
+        
+        function shootRay() {
+            // Play laser sound
+            laserSound.currentTime = 0;
+            laserSound.play();
+            
+            // Activate the death ray
+            rayActive = true;
+            rayDuration = 0;
+            
+            // Create raycaster from camera
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check for intersections with sickle cells
+            const intersects = raycaster.intersectObjects(cells);
+            
+            if (intersects.length > 0) {
+                const hitCell = intersects[0].object;
+                
+                // Check if it's a sickle cell
+                if (hitCell.userData.isSickle) {
+                    healCell(hitCell);
+                }
+            }
+        }
+        
+        function healCell(cell) {
+            // Play heal sound
+            healSound.currentTime = 0;
+            healSound.play();
+            
+            // Add a flash effect at the hit position
+            createHitEffect(cell.position);
+            
+            // Change the cell from sickle to normal
+            cell.userData.isSickle = false;
+            
+            // Change the color to indicate healing
+            cell.material.color.set(0xff3333);
+            cell.material.emissive.set(0x330000);
+            
+            // Replace sickle shape with sphere
+            const normalGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const normalMaterial = new THREE.MeshPhongMaterial({
+                color: 0xff3333,
+                emissive: 0x330000
+            });
+            
+            const normalCell = new THREE.Mesh(normalGeo, normalMaterial);
+            normalCell.position.copy(cell.position);
+            normalCell.userData = cell.userData;
+            
+            // Remove old cell and add new one
+            scene.remove(cell);
+            scene.add(normalCell);
+            
+            // Replace the cell in the array
+            const index = cells.indexOf(cell);
+            if (index !== -1) {
+                cells[index] = normalCell;
+            }
+            
+            // Update score
+            score++;
+            updateScore();
+        }
+        
+        function createHitEffect(position) {
+            // Create a flash effect at the hit position
+            const hitGeometry = new THREE.SphereGeometry(0.6, 16, 16);
+            const hitMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const hitEffect = new THREE.Mesh(hitGeometry, hitMaterial);
+            hitEffect.position.copy(position);
+            scene.add(hitEffect);
+            
+            // Animate the hit effect
+            let hitDuration = 0;
+            const animateHit = function() {
+                hitDuration += 0.1;
+                hitEffect.scale.set(1 + hitDuration, 1 + hitDuration, 1 + hitDuration);
+                hitEffect.material.opacity = 0.8 - hitDuration * 0.8;
+                
+                if (hitDuration < 1) {
+                    requestAnimationFrame(animateHit);
+                } else {
+                    scene.remove(hitEffect);
+                }
+            };
+            
+            animateHit();
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+        
+        function createCells(count) {
+            // Create cells for the current level
+            for (let i = 0; i < count; i++) {
+                // Ensure we have at least 60% sickle cells to heal
+                const isSickle = (i < Math.ceil(count * 0.6)) ? true : Math.random() > 0.3;
+                createCell(isSickle);
+            }
+        }
+        
+        function createCell(isSickle) {
+            let geometry, material;
+            
+            if (isSickle) {
+                // Create sickle cell (crescent shape approximated with custom geometry)
+                geometry = createSickleCellGeometry();
+                material = new THREE.MeshPhongMaterial({
+                    color: 0xaa0000,
+                    emissive: 0x330000,
+                    side: THREE.DoubleSide // Render both sides of faces
+                });
+            } else {
+                // Create normal cell (sphere)
+                geometry = new THREE.SphereGeometry(0.4, 16, 16);
+                material = new THREE.MeshPhongMaterial({
+                    color: 0xff3333,
+                    emissive: 0x330000
+                });
+            }
+            
+            const cell = new THREE.Mesh(geometry, material);
+            
+            // Position the cell at a random position within the tube
+            cell.position.x = Math.random() * 3 - 1.5;
+            cell.position.y = Math.random() * 3 - 1.5;
+            cell.position.z = -40 - Math.random() * 20; // Start from far end of tube
+            
+            // Add random rotation to make sickle cells more visible
+            if (isSickle) {
+                cell.rotation.x = Math.random() * Math.PI;
+                cell.rotation.y = Math.random() * Math.PI;
+                cell.rotation.z = Math.random() * Math.PI;
+            }
+            
+            // Store cell type in userData
+            cell.userData = {
+                isSickle: isSickle,
+                speed: levelSettings[level - 1].speed * (0.8 + Math.random() * 0.4) * 0.5, // Reduced to 50% of original speed
+                rotationSpeed: new THREE.Vector3(
+                    Math.random() * 0.01 - 0.005, // Also reduced rotation speed by 50%
+                    Math.random() * 0.01 - 0.005,
+                    Math.random() * 0.01 - 0.005
+                )
+            };
+            
+            // Add the cell to the scene and cells array
+            scene.add(cell);
+            cells.push(cell);
+            
+            return cell;
+        }
+        
+        function createSickleCellGeometry() {
+            // Create a simplified sickle cell shape using a custom geometry
+            const geometry = new THREE.BufferGeometry();
+            
+            // Create a crescent-like shape with vertices - adding depth in Z axis
+            const vertices = new Float32Array([
+                // Front face
+                -0.4, 0.0, 0.1,    // Middle left
+                -0.2, 0.3, 0.1,    // Top left
+                0.4, 0.2, 0.1,     // Top right
+                0.5, 0.0, 0.1,     // Middle right
+                0.3, -0.3, 0.1,    // Bottom right
+                -0.3, -0.2, 0.1,   // Bottom left
+                
+                // Back face
+                -0.4, 0.0, -0.1,   // Middle left
+                -0.2, 0.3, -0.1,   // Top left
+                0.4, 0.2, -0.1,    // Top right
+                0.5, 0.0, -0.1,    // Middle right
+                0.3, -0.3, -0.1,   // Bottom right
+                -0.3, -0.2, -0.1,  // Bottom left
+            ]);
+            
+            // Create triangular faces - front, back and sides
+            const indices = [
+                // Front face
+                0, 1, 2,
+                0, 2, 3,
+                0, 3, 4,
+                0, 4, 5,
+                
+                // Back face
+                6, 8, 7,
+                6, 9, 8,
+                6, 10, 9,
+                6, 11, 10,
+                
+                // Sides - connecting front to back
+                0, 6, 1,
+                1, 6, 7,
+                1, 7, 2,
+                2, 7, 8,
+                2, 8, 3,
+                3, 8, 9,
+                3, 9, 4,
+                4, 9, 10,
+                4, 10, 5,
+                5, 10, 11,
+                5, 11, 0,
+                0, 11, 6
+            ];
+            
+            // Set up the geometry
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            
+            return geometry;
+        }
+        
+        function startGame() {
+            // Hide overlay and start the game
+            document.getElementById('gameOverlay').style.display = 'none';
+            gameStarted = true;
+            startLevel(1);
+            
+            // Play heartbeat sound
+            heartbeatSound.play();
+            
+            // Hide default cursor during gameplay
+            document.body.classList.add('no-cursor');
+        }
+        
+        function startLevel(levelNum) {
+            // Clear any existing cells
+            cells.forEach(cell => scene.remove(cell));
+            cells = [];
+            
+            // Set level parameters
+            level = levelNum;
+            gameActive = true;
+            levelCompleted = false;
+            
+            // Update level info
+            document.getElementById('info').textContent = `Level ${level}: ${levelSettings[level - 1].name}`;
+            
+            // Create cells for this level
+            createCells(levelSettings[level - 1].cellCount);
+        }
+        
+        function showFact() {
+            // Display fact overlay between levels
+            gameActive = false;
+            document.getElementById('factText').textContent = levelSettings[level - 1].fact;
+            document.getElementById('factOverlay').style.display = 'flex';
+            
+            // Show default cursor on fact screen
+            document.body.classList.remove('no-cursor');
+            
+            console.log("Showing fact for level: " + level);
+        }
+        
+        function startNextLevel() {
+            // Hide fact overlay and start next level
+            document.getElementById('factOverlay').style.display = 'none';
+            
+            if (level < levelSettings.length) {
+                startLevel(level + 1);
+                // Hide cursor again when starting next level
+                document.body.classList.add('no-cursor');
+            } else {
+                // Game completed
+                showGameComplete();
+            }
+        }
+        
+        function showGameComplete() {
+            document.getElementById('gameOverlay').innerHTML = `
+                <h1>Congratulations!</h1>
+                <p>You've completed all levels and healed ${score} sickle cells!</p>
+                <p>Thank you for playing Heal the Stream!</p>
+                <button id="restartButton">Play Again</button>
+            `;
+            document.getElementById('gameOverlay').style.display = 'flex';
+            document.getElementById('restartButton').addEventListener('click', resetGame);
+            
+            // Show default cursor on game complete screen
+            document.body.classList.remove('no-cursor');
+        }
+        
+        function resetGame() {
+            // Reset game state
+            score = 0;
+            updateScore();
+            level = 1;
+            
+            // Hide cursor again when restarting
+            document.body.classList.add('no-cursor');
+            
+            // Restart the game
+            document.getElementById('gameOverlay').style.display = 'none';
+            startLevel(1);
+        }
+        
+        function checkLevelCompletion() {
+            // Check if all sickle cells have been healed
+            let sickleCount = 0;
+            cells.forEach(cell => {
+                if (cell.userData.isSickle) sickleCount++;
+            });
+            
+            // If no more sickle cells, level complete
+            if (sickleCount === 0 && cells.length > 0 && !levelCompleted) {
+                levelCompleted = true;
+                // Add a small delay before showing the fact to ensure all animations complete
+                setTimeout(() => {
+                    showFact();
+                }, 1000);
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameActive) {
+                // Update death ray
+                updateDeathRay();
+                
+                // Move cells
+                for (let i = cells.length - 1; i >= 0; i--) {
+                    const cell = cells[i];
+                    cell.position.z += cell.userData.speed;
+                    
+                    // Add rotation to cells to make them more visible
+                    if (cell.userData.isSickle) {
+                        cell.rotation.x += cell.userData.rotationSpeed.x;
+                        cell.rotation.y += cell.userData.rotationSpeed.y;
+                        cell.rotation.z += cell.userData.rotationSpeed.z;
+                    }
+                    
+                    // Remove cells that go out of view
+                    if (cell.position.z > 10) {
+                        scene.remove(cell);
+                        cells.splice(i, 1);
+                        
+                        // Create new cell to replace it
+                        if (Math.random() > 0.3) { // 70% chance of sickle cell
+                            createCell(true);
+                        } else {
+                            createCell(false);
+                        }
+                    }
+                }
+                
+                // Check if level is complete
+                checkLevelCompletion();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Function to create a procedural blood vessel texture
+        function createBloodVesselTexture() {
+            // Create a canvas for the texture
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            
+            // Fill background with dark red
+            const gradient = ctx.createRadialGradient(
+                canvas.width/2, canvas.height/2, 0,
+                canvas.width/2, canvas.height/2, canvas.width/2
+            );
+            gradient.addColorStop(0, '#880000');
+            gradient.addColorStop(1, '#550000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add main vessel structures
+            ctx.strokeStyle = '#aa0000';
+            ctx.lineWidth = 8;
+            
+            // Draw main vessel lines
+            for (let i = 0; i < 10; i++) {
+                const y = i * (canvas.height / 10) + Math.random() * 20;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                
+                // Create a wavy line across the canvas
+                for (let x = 0; x < canvas.width; x += 50) {
+                    const waviness = Math.sin(x * 0.01) * 15;
+                    ctx.lineTo(x, y + waviness + Math.random() * 10);
+                }
+                
+                ctx.stroke();
+            }
+            
+            // Add smaller vessel branches
+            ctx.strokeStyle = '#990000';
+            ctx.lineWidth = 3;
+            
+            // Draw random vein patterns
+            for (let i = 0; i < 40; i++) {
+                const startX = Math.random() * canvas.width;
+                const startY = Math.random() * canvas.height;
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                
+                let x = startX;
+                let y = startY;
+                
+                // Create a branching vein pattern
+                for (let j = 0; j < 5; j++) {
+                    const newX = x + (Math.random() * 100 - 50);
+                    const newY = y + (Math.random() * 100 - 50);
+                    ctx.lineTo(newX, newY);
+                    x = newX;
+                    y = newY;
+                }
+                
+                ctx.stroke();
+            }
+            
+            // Add tissue texture with small circles
+            for (let i = 0; i < 2000; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const radius = Math.random() * 4 + 1;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                
+                // Vary the color slightly for more realistic tissue appearance
+                const red = 150 + Math.random() * 100;
+                const alpha = 0.3 + Math.random() * 0.4;
+                ctx.fillStyle = `rgba(${red}, ${Math.random() * 30}, ${Math.random() * 30}, ${alpha})`;
+                ctx.fill();
+            }
+            
+            // Add highlights to simulate wet surface
+            for (let i = 0; i < 200; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const radius = Math.random() * 2 + 0.5;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.2})`;
+                ctx.fill();
+            }
+            
+            // Create a Three.js texture from the canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(2, 8); // Adjust repeat to better fit the tube
+            
+            return texture;
+        }
+        
+        // Initialize the game
+        init();
+        animate();
+    </script>
+</body>
+</html>
