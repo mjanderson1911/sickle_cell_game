@@ -30,7 +30,7 @@ An interactive 3D educational game designed to teach about sickle cell disease t
 
 ## Play the Game
 
-You can play the game directly in your browser: [Play Heal the Stream](https://yourusername.github.io/sickle-cell-game/)
+You can play the game directly in your browser: [Play Heal the Stream](https://mjanderson1911.github.io/sickle_cell_game/)
 
 ## Development
 
