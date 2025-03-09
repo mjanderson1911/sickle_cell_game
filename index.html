@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heal the Stream - Sickle Cell Education Game</title>
+    <title>Sickle Cell Blaster 2 - Sickle Cell Education Game</title>
     <style>
         body { 
             margin: 0; 
@@ -33,6 +33,22 @@
             z-index: 100;
             display: block;
             pointer-events: none;
+        }
+        #stopButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            font-size: 14px;
+            background-color: #5a2772;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 150;
+        }
+        #stopButton:hover {
+            background-color: #7a3992;
         }
         #crosshair {
             position: absolute;
@@ -106,15 +122,47 @@
             font-size: 18px;
             margin: 20px 0;
         }
+        #stopGameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        #stopGameOverlay div {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            text-align: center;
+        }
+        #stopGameOverlay h2 {
+            color: #5a2772;
+            margin-top: 0;
+        }
+        #stopGameOverlay p {
+            font-size: 18px;
+            margin: 15px 0;
+        }
+        #stopGameOverlay div button {
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
-    <div id="info">Heal the Stream</div>
+    <div id="info">Sickle Cell Blaster 2</div>
     <div id="score">Score: 0</div>
     <div id="crosshair">+</div>
+    <button id="stopButton">Stop Game</button>
 
     <div id="gameOverlay">
-        <h1>Welcome to Heal the Stream!</h1>
+        <h1>Welcome to Sickle Cell Blaster 2!</h1>
         <p>You're a superhero inside the body, helping to keep blood healthy by zapping sickle cells with your death ray. 
         Use your mouse to aim and click to fire your powerful cyan death ray at the crescent-shaped sickle cells, turning them into 
         normal round red blood cells.</p>
@@ -140,6 +188,18 @@
             <h2>Sickle Cell Fact</h2>
             <p id="factText">Sickle cell disease is caused by a genetic mutation affecting red blood cells.</p>
             <button id="continueButton">Continue to Next Level</button>
+        </div>
+    </div>
+    
+    <div id="stopGameOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 200;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; text-align: center;">
+            <h2 style="color: #5a2772; margin-top: 0;">Game Stopped</h2>
+            <p style="font-size: 18px; margin: 15px 0;">You reached Level <span id="finalLevel">1</span></p>
+            <p style="font-size: 18px; margin: 15px 0;">Final Score: <span id="finalScore">0</span></p>
+            <div style="margin-top: 20px;">
+                <button id="resumeButton" style="margin-right: 10px;">Resume Game</button>
+                <button id="quitButton">Quit Game</button>
+            </div>
         </div>
     </div>
 
@@ -242,6 +302,16 @@
             
             // Add click handler for continue button
             document.getElementById('continueButton').addEventListener('click', startNextLevel);
+            
+            // Add click handler for stop button
+            document.getElementById('stopButton').addEventListener('click', stopGame);
+            
+            // Add click handlers for resume and quit buttons
+            document.getElementById('resumeButton').addEventListener('click', resumeGame);
+            document.getElementById('quitButton').addEventListener('click', quitGame);
+            
+            // Initially hide the stop button
+            document.getElementById('stopButton').style.display = 'none';
         }
         
         // Death ray variables
@@ -483,52 +553,84 @@
             // Create a simplified sickle cell shape using a custom geometry
             const geometry = new THREE.BufferGeometry();
             
-            // Create a crescent-like shape with vertices - adding depth in Z axis
+            // Create a C-shaped geometry that better represents a sickle cell
             const vertices = new Float32Array([
-                // Front face
-                -0.4, 0.0, 0.1,    // Middle left
-                -0.2, 0.3, 0.1,    // Top left
-                0.4, 0.2, 0.1,     // Top right
-                0.5, 0.0, 0.1,     // Middle right
-                0.3, -0.3, 0.1,    // Bottom right
-                -0.3, -0.2, 0.1,   // Bottom left
+                // Front face - outer curve
+                0.0, 0.4, 0.1,     // Top outer
+                0.3, 0.3, 0.1,     // Top right outer
+                0.4, 0.0, 0.1,     // Middle right outer
+                0.3, -0.3, 0.1,    // Bottom right outer
+                0.0, -0.4, 0.1,    // Bottom outer
                 
-                // Back face
-                -0.4, 0.0, -0.1,   // Middle left
-                -0.2, 0.3, -0.1,   // Top left
-                0.4, 0.2, -0.1,    // Top right
-                0.5, 0.0, -0.1,    // Middle right
-                0.3, -0.3, -0.1,   // Bottom right
-                -0.3, -0.2, -0.1,  // Bottom left
+                // Front face - inner curve
+                -0.1, 0.2, 0.1,    // Top inner
+                0.1, 0.1, 0.1,     // Top right inner
+                0.2, 0.0, 0.1,     // Middle right inner
+                0.1, -0.1, 0.1,    // Bottom right inner
+                -0.1, -0.2, 0.1,   // Bottom inner
+                
+                // Back face - outer curve
+                0.0, 0.4, -0.1,    // Top outer
+                0.3, 0.3, -0.1,    // Top right outer
+                0.4, 0.0, -0.1,    // Middle right outer
+                0.3, -0.3, -0.1,   // Bottom right outer
+                0.0, -0.4, -0.1,   // Bottom outer
+                
+                // Back face - inner curve
+                -0.1, 0.2, -0.1,   // Top inner
+                0.1, 0.1, -0.1,    // Top right inner
+                0.2, 0.0, -0.1,    // Middle right inner
+                0.1, -0.1, -0.1,   // Bottom right inner
+                -0.1, -0.2, -0.1,  // Bottom inner
             ]);
             
-            // Create triangular faces - front, back and sides
+            // Create triangular faces
             const indices = [
-                // Front face
-                0, 1, 2,
-                0, 2, 3,
-                0, 3, 4,
-                0, 4, 5,
+                // Front face - outer to inner
+                0, 1, 5,
+                1, 6, 5,
+                1, 2, 6,
+                2, 7, 6,
+                2, 3, 7,
+                3, 8, 7,
+                3, 4, 8,
+                4, 9, 8,
                 
-                // Back face
-                6, 8, 7,
-                6, 9, 8,
-                6, 10, 9,
-                6, 11, 10,
+                // Back face - outer to inner
+                10, 15, 11,
+                11, 15, 16,
+                11, 16, 12,
+                12, 16, 17,
+                12, 17, 13,
+                13, 17, 18,
+                13, 18, 14,
+                14, 18, 19,
                 
-                // Sides - connecting front to back
-                0, 6, 1,
-                1, 6, 7,
-                1, 7, 2,
-                2, 7, 8,
-                2, 8, 3,
-                3, 8, 9,
-                3, 9, 4,
-                4, 9, 10,
-                4, 10, 5,
-                5, 10, 11,
-                5, 11, 0,
-                0, 11, 6
+                // Connect front to back - outer curve
+                0, 10, 1,
+                1, 10, 11,
+                1, 11, 2,
+                2, 11, 12,
+                2, 12, 3,
+                3, 12, 13,
+                3, 13, 4,
+                4, 13, 14,
+                
+                // Connect front to back - inner curve
+                5, 6, 15,
+                6, 16, 15,
+                6, 7, 16,
+                7, 17, 16,
+                7, 8, 17,
+                8, 18, 17,
+                8, 9, 18,
+                9, 19, 18,
+                
+                // Connect the ends
+                0, 5, 10,
+                5, 15, 10,
+                4, 14, 9,
+                9, 14, 19
             ];
             
             // Set up the geometry
@@ -550,6 +652,9 @@
             
             // Hide default cursor during gameplay
             document.body.classList.add('no-cursor');
+            
+            // Show the stop button
+            document.getElementById('stopButton').style.display = 'block';
         }
         
         function startLevel(levelNum) {
@@ -599,14 +704,21 @@
             document.getElementById('gameOverlay').innerHTML = `
                 <h1>Congratulations!</h1>
                 <p>You've completed all levels and healed ${score} sickle cells!</p>
-                <p>Thank you for playing Heal the Stream!</p>
+                <p>Thank you for playing Sickle Cell Blaster 2!</p>
                 <button id="restartButton">Play Again</button>
             `;
             document.getElementById('gameOverlay').style.display = 'flex';
             document.getElementById('restartButton').addEventListener('click', resetGame);
             
+            // Stop the heartbeat sound
+            heartbeatSound.pause();
+            heartbeatSound.currentTime = 0;
+            
             // Show default cursor on game complete screen
             document.body.classList.remove('no-cursor');
+            
+            // Hide the stop button
+            document.getElementById('stopButton').style.display = 'none';
         }
         
         function resetGame() {
@@ -780,6 +892,55 @@
             texture.repeat.set(2, 8); // Adjust repeat to better fit the tube
             
             return texture;
+        }
+        
+        function stopGame() {
+            // Pause the game
+            gameActive = false;
+            
+            // Show default cursor
+            document.body.classList.remove('no-cursor');
+            
+            // Update final score and level in the popup
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalLevel').textContent = level;
+            
+            // Show the stop game overlay
+            document.getElementById('stopGameOverlay').style.display = 'flex';
+        }
+        
+        function resumeGame() {
+            // Hide the stop game overlay
+            document.getElementById('stopGameOverlay').style.display = 'none';
+            
+            // Resume the game
+            gameActive = true;
+            
+            // Hide cursor again
+            document.body.classList.add('no-cursor');
+        }
+        
+        function quitGame() {
+            // Hide the stop game overlay
+            document.getElementById('stopGameOverlay').style.display = 'none';
+            
+            // Reset game state
+            score = 0;
+            updateScore();
+            level = 1;
+            
+            // Stop the heartbeat sound
+            heartbeatSound.pause();
+            heartbeatSound.currentTime = 0;
+            
+            // Show the main menu
+            document.getElementById('gameOverlay').style.display = 'flex';
+            
+            // Show default cursor
+            document.body.classList.remove('no-cursor');
+            
+            // Hide the stop button
+            document.getElementById('stopButton').style.display = 'none';
         }
         
         // Initialize the game

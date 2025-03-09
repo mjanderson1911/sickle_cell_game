@@ -1,10 +1,10 @@
-# Heal the Stream - Sickle Cell Education Game
+# Sickle Cell Blaster 2 - Sickle Cell Education Game
 
 An interactive 3D educational game designed to teach about sickle cell disease through gameplay.
 
 ## About the Game
 
-"Heal the Stream" is a browser-based 3D game where players take on the role of a superhero inside the human body. The mission is to heal sickle cells by zapping them with a death ray, transforming them into normal red blood cells.
+"Sickle Cell Blaster 2" is a browser-based 3D game where players take on the role of a superhero inside the human body. The mission is to heal sickle cells by zapping them with a death ray, transforming them into normal red blood cells.
 
 ## Features
 
@@ -30,7 +30,7 @@ An interactive 3D educational game designed to teach about sickle cell disease t
 
 ## Play the Game
 
-You can play the game directly in your browser: [Play Heal the Stream](https://mjanderson1911.github.io/sickle_cell_game/)
+You can play the game directly in your browser: [Play Sickle Cell Blaster 2](https://mjanderson1911.github.io/sickle_cell_game/)
 
 ## Development
 
